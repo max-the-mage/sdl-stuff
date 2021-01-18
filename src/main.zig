@@ -9,7 +9,6 @@ const ball_speed = 6.2;
 var rng: std.rand.Random = undefined;
 
 const CollisionSide = enum{
-    None,
     Left,
     Right,
     Top,
@@ -207,7 +206,7 @@ fn movePaddle(paddle: *Paddle, speed: c_int) void {
     }
 }
 
-fn checkCollision(ball: *Ball, paddles: *[2]Paddle) CollisionSide {
+fn checkCollision(ball: *Ball, paddles: *[2]Paddle) ?CollisionSide {
 
     if (
         (ball.collision_box.x > @floatToInt(c_int, paddles[0].x)+@divFloor(paddle_width, 2)) and
@@ -218,14 +217,14 @@ fn checkCollision(ball: *Ball, paddles: *[2]Paddle) CollisionSide {
         if (ball.collision_box.y + ball_size > 720)
             return CollisionSide.Bottom;
 
-        return CollisionSide.None;
+        return null;
     } else {
         if (ball.x < 640)  {
             if (
                 (ball.collision_box.y+ball_size < paddles[0].collision_box.y) or
                 (ball.collision_box.y > (paddles[0].collision_box.y+paddle_height))
             ) {
-                return CollisionSide.None;
+                return null;
             } else {
                 return CollisionSide.Left;
             }
@@ -234,7 +233,7 @@ fn checkCollision(ball: *Ball, paddles: *[2]Paddle) CollisionSide {
                 (ball.collision_box.y+ball_size < paddles[1].collision_box.y) or
                 (ball.collision_box.y > (paddles[1].collision_box.y+paddle_height))
             ) {
-                return CollisionSide.None;
+                return null;
             } else {
                 return CollisionSide.Right;
             }
@@ -243,29 +242,30 @@ fn checkCollision(ball: *Ball, paddles: *[2]Paddle) CollisionSide {
 }
 
 fn moveBall(ball: *Ball, paddles: *[2]Paddle) void {
-    switch(checkCollision(ball, paddles)) {
-        CollisionSide.None => {},
-        CollisionSide.Left, CollisionSide.Right => |side| {
-            ball.speed += 0.6;
+    if (checkCollision(ball, paddles)) |side| {
+        switch(side) {
+            CollisionSide.Left, CollisionSide.Right => {
+                ball.speed += 0.6;
 
-            var paddle: usize = 0;
-            if (side == CollisionSide.Right) paddle = 1;
+                var paddle: usize = 0;
+                if (side == CollisionSide.Right) paddle = 1;
 
-            const relative_y = paddles[paddle].y - ball.y;
-            const degrees_per_pixel = 60.0/(paddle_height/2.0);
+                const relative_y = paddles[paddle].y - ball.y;
+                const degrees_per_pixel = 60.0/(paddle_height/2.0);
 
-            const new_angle = (degrees_per_pixel*relative_y*std.math.pi)/180.0;
+                const new_angle = (degrees_per_pixel*relative_y*std.math.pi)/180.0;
 
-            var negate: f32 = 1;
-            if (side == CollisionSide.Right) negate = -1;
+                var negate: f32 = 1;
+                if (side == CollisionSide.Right) negate = -1;
 
-            ball.dx = negate*ball.speed * @cos(new_angle);
-            ball.dy = ball.speed * @sin(new_angle);
+                ball.dx = negate*ball.speed * @cos(new_angle);
+                ball.dy = ball.speed * @sin(new_angle);
 
-            std.log.info("speed: {d}", .{ball.speed});
-        },
-        CollisionSide.Top, CollisionSide.Bottom => {
-            ball.dy = -ball.dy;
+                std.log.info("speed: {d}", .{ball.speed});
+            },
+            CollisionSide.Top, CollisionSide.Bottom => {
+                ball.dy = -ball.dy;
+            }
         }
     }
 
