@@ -6,6 +6,9 @@ const paddle_width = 32;
 const ball_size: c_int = 48;
 const ball_speed = 6.2;
 
+const window_width = 1280;
+const window_height = 720;
+
 var rng: std.rand.Random = undefined;
 
 const CollisionSide = enum{
@@ -55,11 +58,9 @@ pub fn main() anyerror!void {
         "testing sdl",
         .centered,
         .centered,
-        1280,
-        720,
-        .{
-            .resizable = true,
-        },
+        window_width,
+        window_height,
+        .{},
     );
     defer window.destroy();
 
@@ -199,7 +200,7 @@ pub fn main() anyerror!void {
 fn movePaddle(paddle: *Paddle, speed: c_int) void {
     if (
         (paddle.collision_box.y+(paddle.dy*speed) > 0) and
-        (paddle.collision_box.y+paddle_height+(paddle.dy*speed) < 720)
+        (paddle.collision_box.y+paddle_height+(paddle.dy*speed) < window_height)
     ) {
         paddle.*.y += @intToFloat(f32, paddle.dy*speed);
         paddle.*.collision_box.y = @floatToInt(c_int, paddle.y) - @divFloor(paddle_height, 2);
@@ -214,7 +215,7 @@ fn checkCollision(ball: *Ball, paddles: *[2]Paddle) ?CollisionSide {
     ) {
         if (ball.collision_box.y < 0)
             return CollisionSide.Top;
-        if (ball.collision_box.y + ball_size > 720)
+        if (ball.collision_box.y + ball_size > window_height)
             return CollisionSide.Bottom;
 
         return null;
@@ -272,7 +273,7 @@ fn moveBall(ball: *Ball, paddles: *[2]Paddle) void {
     ball.x += ball.dx;
     ball.y -= ball.dy;
 
-    if (ball.x < 0 or ball.x > 1280) {
+    if (ball.x < 0 or ball.x > window_width) {
         if(ball.x < 0) {
             paddles[1].points += 1;
         } else {
@@ -282,8 +283,8 @@ fn moveBall(ball: *Ball, paddles: *[2]Paddle) void {
         std.log.info("Score\t{} : {}", .{paddles[0].points, paddles[1].points});
 
         const rand_angle = rng.float(f32)*2.0*std.math.pi;
-        ball.x = 640;
-        ball.y = 360;
+        ball.x = @intToFloat(f32, window_width)/2.0;
+        ball.y = @intToFloat(f32, window_height)/2.0;
         ball.speed = ball_speed;
         ball.dx = ball_speed*@cos(rand_angle);
         ball.dy = ball_speed*@sin(rand_angle);
