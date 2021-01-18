@@ -1,0 +1,4 @@
+.zigmod
+.vscode
+zig-cache
+deps.zig
