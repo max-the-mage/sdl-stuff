@@ -271,7 +271,7 @@ fn moveBall(ball: *Ball, paddles: *[2]Paddle) void {
 
                 // total vertical travel between paddles
 
-                // predicts jiggles
+                // predicts where ball will be after right paddle (player) hits it
                 if (side == CollisionSide.Right) {
                     const distance = (paddles[1].x - paddles[0].x)+@intToFloat(f32, paddle_width);
 
@@ -291,7 +291,6 @@ fn moveBall(ball: *Ball, paddles: *[2]Paddle) void {
                     predicted = @floatToInt(c_int, predicted_y);
                 }
                 
-                // std.log.info("speed: {d}", .{ball.speed});
             },
             CollisionSide.Top, CollisionSide.Bottom => {
                 ball.dy = -ball.dy;
@@ -302,14 +301,12 @@ fn moveBall(ball: *Ball, paddles: *[2]Paddle) void {
     ball.x += ball.dx;
     ball.y -= ball.dy;
 
-    if (ball.collision_box.x < 0 or ball.collision_box.x + ball_size > window_width) {
+    if (ball.collision_box.x + ball_size < 0 or ball.collision_box.x > window_width) {
         if(ball.x < 0) {
             paddles[1].points += 1;
         } else {
             paddles[0].points += 1;
         }
-
-        std.log.info("Score\t{} : {}", .{paddles[0].points, paddles[1].points});
 
         const rand_angle = rng.float(f32)*2.0*std.math.pi;
         ball.x = @intToFloat(f32, window_width)/2.0;
