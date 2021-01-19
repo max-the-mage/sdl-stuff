@@ -216,15 +216,15 @@ fn movePaddle(paddle: *Paddle, speed: c_int) void {
 
 fn checkCollision(ball: *Ball, paddles: *[2]Paddle) ?CollisionSide {
 
+    if (ball.collision_box.y < 0)
+        return CollisionSide.Top;
+    if (ball.collision_box.y + ball_size > window_height)
+        return CollisionSide.Bottom;
+
     if (
         (ball.collision_box.x > @floatToInt(c_int, paddles[0].x)+@divFloor(paddle_width, 2)) and
         (ball.collision_box.x + ball_size < @floatToInt(c_int, paddles[1].x)-@divFloor(paddle_width, 2))
     ) {
-        if (ball.collision_box.y < 0)
-            return CollisionSide.Top;
-        if (ball.collision_box.y + ball_size > window_height)
-            return CollisionSide.Bottom;
-
         return null;
     } else {
         if (ball.x < 640)  {
@@ -302,7 +302,7 @@ fn moveBall(ball: *Ball, paddles: *[2]Paddle) void {
     ball.x += ball.dx;
     ball.y -= ball.dy;
 
-    if (ball.x < 0 or ball.x > window_width) {
+    if (ball.collision_box.x < 0 or ball.collision_box.x + ball_size > window_width) {
         if(ball.x < 0) {
             paddles[1].points += 1;
         } else {
