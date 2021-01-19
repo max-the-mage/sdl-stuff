@@ -10,6 +10,8 @@ const window_width = 1280;
 const window_height = 720;
 
 var rng: std.rand.Random = undefined;
+var predicted: c_int = 0;
+
 
 const CollisionSide = enum{
     Left,
@@ -94,6 +96,8 @@ pub fn main() anyerror!void {
 
     const rand_angle = rng.float(f32)*2.0*std.math.pi;
 
+    predicted = center_y;
+
     // place the center ball
     var ball = Ball{
         .x = @intToFloat(f32, center_x),
@@ -158,22 +162,25 @@ pub fn main() anyerror!void {
         paddles[0].dy = 0;
         paddles[1].dy = 0;
 
-        if (keystate.isPressed(sdl.c.SDL_Scancode.SDL_SCANCODE_W))
-            paddles[0].dy -= 1;
-        if (keystate.isPressed(sdl.c.SDL_Scancode.SDL_SCANCODE_S))
-            paddles[0].dy += 1;
+        // if (keystate.isPressed(sdl.c.SDL_Scancode.SDL_SCANCODE_W))
+        //     paddles[0].dy -= 1;
+        // if (keystate.isPressed(sdl.c.SDL_Scancode.SDL_SCANCODE_S))
+        //     paddles[0].dy += 1;
+        const y_exact = @floatToInt(c_int, paddles[0].y);
+        if ((try std.math.absInt(predicted - y_exact)) > 3) {
+            paddles[0].dy += negateIfTrue(y_exact > predicted);
+        }
 
         if (keystate.isPressed(sdl.c.SDL_Scancode.SDL_SCANCODE_UP))
             paddles[1].dy -= 1;
         if (keystate.isPressed(sdl.c.SDL_Scancode.SDL_SCANCODE_DOWN))
             paddles[1].dy += 1;
 
-        
-        moveBall(&ball, paddles[0..]);
-
         for (paddles) |*paddle| {
             movePaddle(paddle, 5);
         }
+
+        moveBall(&ball, paddles[0..]);
 
         // Clear the screen to a very dark gray
         try renderer.setColor(sdl.Color.rgb(0x10, 0x10, 0x10));
@@ -246,7 +253,7 @@ fn moveBall(ball: *Ball, paddles: *[2]Paddle) void {
     if (checkCollision(ball, paddles)) |side| {
         switch(side) {
             CollisionSide.Left, CollisionSide.Right => {
-                ball.speed += 0.6;
+                ball.speed += 0.5;
 
                 var paddle: usize = 0;
                 if (side == CollisionSide.Right) paddle = 1;
@@ -262,7 +269,29 @@ fn moveBall(ball: *Ball, paddles: *[2]Paddle) void {
                 ball.dx = negate*ball.speed * @cos(new_angle);
                 ball.dy = ball.speed * @sin(new_angle);
 
-                std.log.info("speed: {d}", .{ball.speed});
+                // total vertical travel between paddles
+
+                // predicts jiggles
+                if (side == CollisionSide.Right) {
+                    const distance = (paddles[1].x - paddles[0].x)+@intToFloat(f32, paddle_width);
+
+                    const screen_height = @intToFloat(f32, window_height);
+
+                    const slope = ball.dy/ball.dx;
+                    var predicted_y = std.math.absFloat(slope * (distance) + ball.y);
+                    const bounces = std.math.absFloat(@divFloor(predicted_y, screen_height));
+
+                    if (@mod(@floatToInt(c_int, bounces), 2) == 0) {
+                        predicted_y = @mod(predicted_y, screen_height);
+                    } else {
+                        predicted_y = screen_height - @mod(predicted_y, screen_height);
+                    }
+
+                    std.log.info("predicted y value: {d}", .{predicted_y});
+                    predicted = @floatToInt(c_int, predicted_y);
+                }
+                
+                // std.log.info("speed: {d}", .{ball.speed});
             },
             CollisionSide.Top, CollisionSide.Bottom => {
                 ball.dy = -ball.dy;
@@ -293,4 +322,11 @@ fn moveBall(ball: *Ball, paddles: *[2]Paddle) void {
     ball.collision_box.x = @floatToInt(c_int, ball.x) - @divFloor(ball_size, 2);
     ball.collision_box.y = @floatToInt(c_int, ball.y) - @divFloor(ball_size, 2);
     
+}
+
+fn negateIfTrue(condition: bool) c_int {
+    if (condition)
+        return -1;
+    
+    return 1;
 }
