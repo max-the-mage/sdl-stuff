@@ -301,12 +301,12 @@ fn moveBall(ball: *Ball, paddles: *[2]Paddle) void {
     ball.y -= ball.dy;
 
     if (ball.collision_box.x + ball_size < 0 or ball.collision_box.x > window_width) {
-        if(ball.x < @divExact(window_width, 2)) {
+        if(ball.x < 50) {
             paddles[1].points += 1;
-            server = 0;
+            server = 1;
         } else {
             paddles[0].points += 1;
-            server = 1;
+            server = -1;
         }
 
         predicted = @divFloor(window_height, 2) + rng.intRangeAtMost(i32, -95, 95);
@@ -316,7 +316,7 @@ fn moveBall(ball: *Ball, paddles: *[2]Paddle) void {
         ball.x = @intToFloat(f32, window_width)/2.0;
         ball.y = @intToFloat(f32, window_height)/2.0;
         ball.speed = ball_speed;
-        ball.dx = ball.speed * @cos(std.math.pi * @intToFloat(f32, server));
+        ball.dx = ball.speed * @intToFloat(f32, server);
         ball.dy = 0;
     }
 
