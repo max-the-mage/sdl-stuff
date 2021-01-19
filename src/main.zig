@@ -12,6 +12,7 @@ const window_height = 720;
 var rng: std.rand.Random = undefined;
 var predicted: c_int = 0;
 
+var server: c_int = 1;
 
 const CollisionSide = enum{
     Left,
@@ -94,8 +95,6 @@ pub fn main() anyerror!void {
     const center_x = @divExact(window_size.width, 2);
     const center_y = @divExact(window_size.height, 2);
 
-    const rand_angle = rng.float(f32)*2.0*std.math.pi;
-
     predicted = center_y;
 
     // place the center ball
@@ -103,8 +102,8 @@ pub fn main() anyerror!void {
         .x = @intToFloat(f32, center_x),
         .y = @intToFloat(f32, center_y),
         .speed = ball_speed,
-        .dx = ball_speed * @cos(rand_angle),
-        .dy = ball_speed * @sin(rand_angle),
+        .dx = ball_speed,
+        .dy = 0,
         .collision_box = .{
             .x = center_x - @divFloor(ball_size, 2),
             .y = center_y - @divFloor(ball_size, 2),
@@ -115,11 +114,11 @@ pub fn main() anyerror!void {
 
     var paddles = [_]Paddle{
         .{
-            .x = 30.0,
+            .x = 60.0,
             .y = @intToFloat(f32, center_y),
             .dy = 0,
             .collision_box = .{
-                .x = 30 - @divFloor(@intCast(c_int, paddle_info.width), 2),
+                .x = 60 - @divFloor(@intCast(c_int, paddle_info.width), 2),
                 .y = center_y - @divFloor(paddle_height, 2),
                 .width = @intCast(c_int, paddle_info.width),
                 .height = paddle_height
@@ -127,11 +126,11 @@ pub fn main() anyerror!void {
             .points = 0,
         },
         .{
-            .x = @intToFloat(f32, window_size.width) - 30.0,
+            .x = @intToFloat(f32, window_size.width) - 60.0,
             .y = @intToFloat(f32, center_y),
             .dy = 0,
             .collision_box = .{
-                .x = (window_size.width - 30) - @divFloor(@intCast(c_int, paddle_info.width), 2),
+                .x = (window_size.width - 60) - @divFloor(@intCast(c_int, paddle_info.width), 2),
                 .y = center_y - @divFloor(paddle_height, 2),
                 .width = @intCast(c_int, paddle_info.width),
                 .height = paddle_height,
@@ -166,7 +165,7 @@ pub fn main() anyerror!void {
         //     paddles[0].dy -= 1;
         // if (keystate.isPressed(sdl.c.SDL_Scancode.SDL_SCANCODE_S))
         //     paddles[0].dy += 1;
-        const y_exact = @floatToInt(c_int, paddles[0].y);
+        var y_exact = @floatToInt(c_int, paddles[0].y);
         if ((try std.math.absInt(predicted - y_exact)) > 3) {
             paddles[0].dy += negateIfTrue(y_exact > predicted);
         }
@@ -251,10 +250,9 @@ fn checkCollision(ball: *Ball, paddles: *[2]Paddle) ?CollisionSide {
 
 fn moveBall(ball: *Ball, paddles: *[2]Paddle) void {
     if (checkCollision(ball, paddles)) |side| {
+        ball.speed += 0.25;
         switch(side) {
             CollisionSide.Left, CollisionSide.Right => {
-                ball.speed += 0.5;
-
                 var paddle: usize = 0;
                 if (side == CollisionSide.Right) paddle = 1;
 
@@ -287,7 +285,9 @@ fn moveBall(ball: *Ball, paddles: *[2]Paddle) void {
                         predicted_y = screen_height - @mod(predicted_y, screen_height);
                     }
 
-                    predicted = @floatToInt(c_int, predicted_y);
+                    predicted = @floatToInt(c_int, predicted_y) + rng.intRangeAtMost(i32, -30, 30);
+                } else {
+                    predicted = @divFloor(window_height, 2);
                 }
                 
             },
@@ -301,20 +301,23 @@ fn moveBall(ball: *Ball, paddles: *[2]Paddle) void {
     ball.y -= ball.dy;
 
     if (ball.collision_box.x + ball_size < 0 or ball.collision_box.x > window_width) {
-        if(ball.x < 0) {
+        if(ball.x < @divExact(window_width, 2)) {
             paddles[1].points += 1;
+            server = 0;
         } else {
             paddles[0].points += 1;
+            server = 1;
         }
 
-        std.log.info("Score\t{} : {}", .{paddles[0].points, paddles[1].points});
+        predicted = @divFloor(window_height, 2) + rng.intRangeAtMost(i32, -95, 95);
 
-        const rand_angle = rng.float(f32)*2.0*std.math.pi;
+        std.debug.print("Score\t{} : {}\n", .{paddles[0].points, paddles[1].points});
+
         ball.x = @intToFloat(f32, window_width)/2.0;
         ball.y = @intToFloat(f32, window_height)/2.0;
         ball.speed = ball_speed;
-        ball.dx = ball_speed*@cos(rand_angle);
-        ball.dy = ball_speed*@sin(rand_angle);
+        ball.dx = ball.speed * @cos(std.math.pi * @intToFloat(f32, server));
+        ball.dy = 0;
     }
 
     ball.collision_box.x = @floatToInt(c_int, ball.x) - @divFloor(ball_size, 2);
